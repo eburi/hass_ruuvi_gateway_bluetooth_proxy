@@ -1,4 +1,5 @@
 """Sensor platform for Ruuvi Gateway Bluetooth Proxy integration."""
+
 from __future__ import annotations
 
 import logging
@@ -26,7 +27,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Ruuvi Gateway Bluetooth Proxy sensors."""
     coordinator: RuuviGatewayCoordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     entities = [
         RuuviGatewaySensor(
             coordinator,
@@ -51,7 +52,7 @@ async def async_setup_entry(
         ),
         RuuviGatewayActiveGateways(coordinator, entry.entry_id),
     ]
-    
+
     async_add_entities(entities)
 
 

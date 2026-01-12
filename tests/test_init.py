@@ -1,8 +1,7 @@
 """Test init module."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.config_entries import ConfigEntry
+from unittest.mock import patch
+
 from homeassistant.core import HomeAssistant
 
 from custom_components.ruuvi_gateway_bt_proxy import (
@@ -40,7 +39,7 @@ async def test_unload_entry(hass: HomeAssistant, mock_config_entry):
         return_value=None,
     ):
         await async_setup_entry(hass, mock_config_entry)
-    
+
     # Mock the shutdown
     with patch(
         "custom_components.ruuvi_gateway_bt_proxy.coordinator.RuuviGatewayCoordinator.async_shutdown",

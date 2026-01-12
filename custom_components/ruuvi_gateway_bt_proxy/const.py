@@ -1,4 +1,5 @@
 """Constants for the Ruuvi Gateway Bluetooth Proxy integration."""
+
 from typing import Final
 
 DOMAIN: Final = "ruuvi_gateway_bt_proxy"

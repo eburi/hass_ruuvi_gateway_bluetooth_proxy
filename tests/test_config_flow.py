@@ -1,13 +1,11 @@
 """Tests for config flow."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.ruuvi_gateway_bt_proxy.config_flow import (
-    RuuviGatewayConfigFlow,
     normalize_topic_prefix,
     validate_mac_list,
 )
@@ -19,10 +17,6 @@ from custom_components.ruuvi_gateway_bt_proxy.const import (
     CONF_QOS,
     CONF_RSSI_MIN,
     CONF_TOPIC_PREFIX,
-    DEFAULT_BATCH_WINDOW_MS,
-    DEFAULT_QOS,
-    DEFAULT_RSSI_MIN,
-    DEFAULT_TOPIC_PREFIX,
     DOMAIN,
 )
 
@@ -45,7 +39,7 @@ def test_validate_mac_list():
         "AA:BB:CC:DD:EE:FF",
         "11:22:33:44:55:66",
     ]
-    
+
     # Invalid MAC should raise
     with pytest.raises(Exception):
         validate_mac_list("INVALID")
@@ -56,10 +50,10 @@ async def test_user_flow_success(hass: HomeAssistant):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
-    
+
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
-    
+
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {
@@ -72,7 +66,7 @@ async def test_user_flow_success(hass: HomeAssistant):
             CONF_DEBUG_ENTITY: False,
         },
     )
-    
+
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Ruuvi Gateway BT Proxy"
     assert result["data"][CONF_TOPIC_PREFIX] == "ruuvi/"
@@ -84,7 +78,7 @@ async def test_user_flow_with_whitelist(hass: HomeAssistant):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
-    
+
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {
@@ -97,7 +91,7 @@ async def test_user_flow_with_whitelist(hass: HomeAssistant):
             CONF_DEBUG_ENTITY: True,
         },
     )
-    
+
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_TOPIC_PREFIX] == "custom/"
     assert result["data"][CONF_GATEWAY_WHITELIST] == ["AA:BB:CC:DD:EE:FF"]

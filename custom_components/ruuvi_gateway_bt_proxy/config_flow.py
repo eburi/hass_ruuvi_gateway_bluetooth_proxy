@@ -1,11 +1,11 @@
 """Config flow for Ruuvi Gateway Bluetooth Proxy integration."""
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -126,10 +126,6 @@ class RuuviGatewayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class RuuviGatewayOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Ruuvi Gateway Bluetooth Proxy."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -162,7 +158,7 @@ class RuuviGatewayOptionsFlow(config_entries.OptionsFlow):
                 _LOGGER.exception("Unexpected exception: %s", err)
                 errors["base"] = "unknown"
 
-        # Get current values
+        # Get current values from config entry
         current_data = {**self.config_entry.data, **self.config_entry.options}
 
         # Convert list to comma-separated string for display

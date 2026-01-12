@@ -1,9 +1,7 @@
 """Unit tests for Ruuvi Gateway Bluetooth Proxy integration."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 from custom_components.ruuvi_gateway_bt_proxy.const import (
     CONF_BATCH_WINDOW_MS,

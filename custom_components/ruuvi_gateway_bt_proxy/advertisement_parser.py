@@ -1,8 +1,8 @@
 """BLE advertisement parsing utilities."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from bleak.backends.scanner import AdvertisementData
 
@@ -26,12 +26,11 @@ AD_TYPE_MANUFACTURER_DATA = 0xFF
 
 
 def parse_advertisement_data(data_hex: str) -> AdvertisementData:
-    """
-    Parse raw BLE advertisement data from hex string.
-    
+    """Parse raw BLE advertisement data from hex string.
+
     Format: Each AD structure is [length][type][data...]
     where length = 1 + len(data)
-    
+
     Returns AdvertisementData with parsed fields.
     """
     try:
@@ -113,9 +112,7 @@ def parse_advertisement_data(data_hex: str) -> AdvertisementData:
                     if j + 1 < len(ad_data):
                         uuid_bytes = ad_data[j : j + 2]
                         uuid = f"{uuid_bytes[1]:02x}{uuid_bytes[0]:02x}"
-                        service_uuids.append(
-                            f"0000{uuid}-0000-1000-8000-00805f9b34fb"
-                        )
+                        service_uuids.append(f"0000{uuid}-0000-1000-8000-00805f9b34fb")
             elif ad_type in (
                 AD_TYPE_INCOMPLETE_128BIT_SERVICE_UUIDS,
                 AD_TYPE_COMPLETE_128BIT_SERVICE_UUIDS,
@@ -137,7 +134,9 @@ def parse_advertisement_data(data_hex: str) -> AdvertisementData:
             elif ad_type == AD_TYPE_TX_POWER:
                 if len(ad_data) >= 1:
                     # Signed 8-bit integer
-                    tx_power = int.from_bytes(ad_data[:1], byteorder="little", signed=True)
+                    tx_power = int.from_bytes(
+                        ad_data[:1], byteorder="little", signed=True
+                    )
 
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Error parsing AD type 0x%02x: %s", ad_type, err)
