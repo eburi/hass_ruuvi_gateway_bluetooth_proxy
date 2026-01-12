@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ruuvi Gateway Bluetooth Proxy",
+        "description": "Configure the Ruuvi Gateway Bluetooth Proxy integration. Make sure the MQTT integration is already set up.",
+        "data": {
+          "mqtt_topic_prefix": "MQTT Topic Prefix",
+          "mqtt_qos": "MQTT QoS",
+          "gateway_whitelist": "Gateway Whitelist (comma-separated MAC addresses, leave empty for all)",
+          "device_whitelist": "Device Whitelist (comma-separated MAC addresses, leave empty for all)",
+          "rssi_min": "Minimum RSSI",
+          "batch_window_ms": "Batch Window (ms)",
+          "enable_debug_entity": "Enable Debug Sensors"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Invalid MAC address format",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ruuvi Gateway Bluetooth Proxy Options",
+        "description": "Update configuration options",
+        "data": {
+          "mqtt_topic_prefix": "MQTT Topic Prefix",
+          "mqtt_qos": "MQTT QoS",
+          "gateway_whitelist": "Gateway Whitelist (comma-separated MAC addresses, leave empty for all)",
+          "device_whitelist": "Device Whitelist (comma-separated MAC addresses, leave empty for all)",
+          "rssi_min": "Minimum RSSI",
+          "batch_window_ms": "Batch Window (ms)",
+          "enable_debug_entity": "Enable Debug Sensors"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Invalid MAC address format",
+      "unknown": "Unexpected error occurred"
+    }
+  }
+}
