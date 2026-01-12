@@ -31,6 +31,7 @@ from .const import (
     CONF_QOS,
     CONF_RSSI_MIN,
     CONF_TOPIC_PREFIX,
+    DOMAIN,
     STAT_FILTERED_DEVICE,
     STAT_FILTERED_GATEWAY,
     STAT_FILTERED_RSSI,
@@ -80,6 +81,7 @@ class RuuviGatewayCoordinator:
         # Statistics
         self._stats: dict[str, int] = defaultdict(int)
         self._gateway_last_seen: dict[str, float] = {}
+        self._gateway_status: dict[str, bool] = {}  # gateway_mac -> online status
 
         # Registered scanners and devices
         self._registered_scanners: set[str] = set()
@@ -131,6 +133,21 @@ class RuuviGatewayCoordinator:
             _LOGGER.error("Failed to subscribe to MQTT: %s", err)
             raise ConfigEntryNotReady("Failed to subscribe to MQTT topics") from err
 
+        # Subscribe to gateway status topics
+        status_topic_pattern = f"{topic_prefix}+/gw_status"
+        _LOGGER.info(
+            "Subscribing to gateway status topic: %s (QoS %d)",
+            status_topic_pattern,
+            qos,
+        )
+
+        try:
+            await mqtt.async_subscribe(
+                self.hass, status_topic_pattern, self._mqtt_status_received, qos
+            )
+        except Exception as err:
+            _LOGGER.warning("Failed to subscribe to status topics: %s", err)
+
         # Start flush task
         self._flush_task = asyncio.create_task(self._flush_loop())
 
@@ -159,9 +176,45 @@ class RuuviGatewayCoordinator:
         _LOGGER.info("Ruuvi Gateway Bluetooth Proxy coordinator shut down")
 
     @callback
+    def _mqtt_status_received(self, msg: mqtt.ReceiveMessage) -> None:
+        """Handle incoming gateway status message."""
+        try:
+            # Parse topic: ruuvi/<gateway_mac>/gw_status
+            topic_parts = msg.topic.split("/")
+            if len(topic_parts) < 3 or topic_parts[-1] != "gw_status":
+                _LOGGER.debug("Invalid status topic format: %s", msg.topic)
+                return
+
+            gateway_mac = topic_parts[-2].upper()
+
+            # Parse JSON payload
+            try:
+                payload = json.loads(msg.payload)
+                state = payload.get("state", "").lower()
+                is_online = state == "online"
+
+                old_status = self._gateway_status.get(gateway_mac)
+                self._gateway_status[gateway_mac] = is_online
+
+                if old_status != is_online:
+                    _LOGGER.info(
+                        "Gateway %s is now %s",
+                        gateway_mac,
+                        "online" if is_online else "offline",
+                    )
+
+            except (json.JSONDecodeError, KeyError) as err:
+                _LOGGER.debug("Invalid status JSON in topic %s: %s", msg.topic, err)
+
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Error processing status message: %s", err)
+
+    @callback
     def _mqtt_message_received(self, msg: mqtt.ReceiveMessage) -> None:
         """Handle incoming MQTT message."""
         self._stats[STAT_PACKETS_RECEIVED] += 1
+
+        _LOGGER.debug("Received MQTT message on topic: %s", msg.topic)
 
         try:
             # Parse topic: ruuvi/<gateway_mac>/<ble_mac>
@@ -174,6 +227,10 @@ class RuuviGatewayCoordinator:
 
             gateway_mac = topic_parts[-2].upper()
             ble_mac = topic_parts[-1].upper()
+
+            _LOGGER.debug(
+                "Parsed topic - Gateway: %s, BLE Device: %s", gateway_mac, ble_mac
+            )
 
             # Parse JSON payload
             try:
@@ -198,9 +255,21 @@ class RuuviGatewayCoordinator:
                 self._stats[STAT_PACKETS_DROPPED] += 1
                 return
 
+            _LOGGER.debug(
+                "Valid advertisement - RSSI: %d, Data length: %d", rssi, len(data_hex)
+            )
+
             # Apply filters
             if not self._should_process(gateway_mac, ble_mac, rssi):
+                _LOGGER.debug(
+                    "Advertisement filtered out - Gateway: %s, BLE: %s, RSSI: %d",
+                    gateway_mac,
+                    ble_mac,
+                    rssi,
+                )
                 return
+
+            _LOGGER.debug("Advertisement passed filters, buffering...")
 
             # Create observation
             observation = BLEObservation(
@@ -275,6 +344,14 @@ class RuuviGatewayCoordinator:
     async def _flush_buffers(self) -> None:
         """Flush all buffered observations to Bluetooth backend."""
         async with self._buffer_lock:
+            total_observations = sum(len(buf) for buf in self._buffers.values())
+            if total_observations > 0:
+                _LOGGER.debug(
+                    "Flushing %d observations from %d gateways",
+                    total_observations,
+                    len(self._buffers),
+                )
+
             for gateway_mac, gateway_buffer in self._buffers.items():
                 if not gateway_buffer:
                     continue
@@ -328,31 +405,50 @@ class RuuviGatewayCoordinator:
             return
 
         try:
-            # Create device with gateway MAC as identifier
-            device = self._device_registry.async_get_or_create(
+            # Create parent gateway device
+            gateway_device = self._device_registry.async_get_or_create(
                 config_entry_id=self.entry.entry_id,
-                identifiers={("ruuvi_gateway_bt_proxy", gateway_mac)},
+                identifiers={(DOMAIN, gateway_mac)},
                 connections={(dr.CONNECTION_NETWORK_MAC, gateway_mac)},
                 name=f"Ruuvi Gateway {gateway_mac}",
                 manufacturer="Ruuvi",
                 model="Ruuvi Gateway",
             )
 
-            self._gateway_devices[gateway_mac] = device.id
+            # Create child Bluetooth proxy device (linked via via_device)
+            proxy_source = f"ruuvi_gw_{gateway_mac.replace(':', '').lower()}"
+            proxy_device = self._device_registry.async_get_or_create(
+                config_entry_id=self.entry.entry_id,
+                identifiers={(DOMAIN, proxy_source)},
+                name=f"Ruuvi Gateway {gateway_mac} Bluetooth Proxy",
+                manufacturer="Ruuvi",
+                model="Bluetooth Proxy",
+                via_device=(DOMAIN, gateway_mac),  # Link to parent gateway
+            )
+
+            self._gateway_devices[gateway_mac] = gateway_device.id
 
             _LOGGER.info(
-                "Created device for Ruuvi Gateway %s (device_id: %s)",
+                "Created gateway device %s (device_id: %s) and proxy device (device_id: %s)",
                 gateway_mac,
-                device.id,
+                gateway_device.id,
+                proxy_device.id,
             )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error(
-                "Failed to create device for gateway %s: %s", gateway_mac, err
+                "Failed to create devices for gateway %s: %s", gateway_mac, err
             )
 
     async def _forward_to_bluetooth(self, observation: BLEObservation) -> None:
         """Forward a single observation to the Bluetooth backend."""
         try:
+            _LOGGER.debug(
+                "Forwarding advertisement - Gateway: %s, Device: %s, RSSI: %d",
+                observation.gateway_mac,
+                observation.ble_mac,
+                observation.rssi,
+            )
+
             # Parse advertisement data
             if observation.advertisement_data is None:
                 observation.advertisement_data = parse_advertisement_data(
@@ -399,6 +495,11 @@ class RuuviGatewayCoordinator:
             if self._bluetooth_callback:
                 self._bluetooth_callback(service_info)
                 self._stats[STAT_PACKETS_FORWARDED] += 1
+                _LOGGER.debug(
+                    "Successfully forwarded to Bluetooth - Device: %s, Source: %s",
+                    observation.ble_mac,
+                    source,
+                )
             else:
                 _LOGGER.warning("Bluetooth callback not available")
 

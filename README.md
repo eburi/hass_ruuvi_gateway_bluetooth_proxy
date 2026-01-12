@@ -78,9 +78,18 @@ Configure your Ruuvi Gateway to publish to MQTT:
 | **MQTT QoS** | `0` | Quality of Service level (0, 1, or 2) |
 | **Gateway Whitelist** | (empty) | Comma-separated MAC addresses of gateways to accept (empty = all) |
 | **Device Whitelist** | (empty) | Comma-separated BLE device MAC addresses to accept (empty = all) |
-| **Minimum RSSI** | `-127` | Drop packets with RSSI below this value |
 | **Batch Window (ms)** | `250` | Time window for coalescing observations (50-5000ms) |
 | **Enable Debug Entity** | `false` | Enable debug sensors for monitoring statistics |
+
+### Per-Gateway RSSI Filtering
+
+Each Ruuvi Gateway device has an **RSSI Filter** number entity that allows you to set the minimum RSSI threshold for that specific gateway. Advertisements with RSSI below this threshold will be filtered out.
+
+- **Default**: `-127` (no filtering)
+- **Range**: `-127` to `0` dBm
+- **Location**: Each gateway device page → Controls → RSSI Filter
+
+This allows you to optimize filtering per gateway based on location and environment.
 
 ### Example Configuration
 
@@ -92,9 +101,9 @@ Configure your Ruuvi Gateway to publish to MQTT:
 - Topic Prefix: `ruuvi/`
 - Gateway Whitelist: `C1:05:28:BF:A7:E7, AA:BB:CC:DD:EE:FF`
 - Device Whitelist: `6B:EF:59:3C:53:D9`
-- Minimum RSSI: `-80`
 - Batch Window: `500`
 - Enable Debug Entity: `✓`
+- Per-gateway RSSI filters configured individually on each device
 
 ## MQTT Topic Format
 

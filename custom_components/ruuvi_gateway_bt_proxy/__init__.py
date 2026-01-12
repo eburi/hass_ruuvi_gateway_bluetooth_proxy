@@ -34,8 +34,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Always set up number platform for per-gateway RSSI filters
-    await hass.config_entries.async_forward_entry_setups(entry, [Platform.NUMBER])
+    # Always set up number and binary_sensor platforms
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [Platform.NUMBER, Platform.BINARY_SENSOR]
+    )
 
     # Set up sensor platform if debug entity is enabled
     if config.get(CONF_DEBUG_ENTITY, False):
@@ -51,9 +53,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Unload number platform (always loaded)
+    # Unload number and binary_sensor platforms (always loaded)
     unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, [Platform.NUMBER]
+        entry, [Platform.NUMBER, Platform.BINARY_SENSOR]
     )
 
     # Unload sensor platform if debug entities were enabled

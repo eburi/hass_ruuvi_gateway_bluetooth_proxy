@@ -80,6 +80,16 @@ class RuuviGatewaySensor(SensorEntity):
         self._attr_icon = "mdi:counter"
 
     @property
+    def device_info(self):
+        """Return device info to link sensor to integration device."""
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": "Ruuvi Gateway Bluetooth Proxy",
+            "manufacturer": "Ruuvi",
+            "model": "MQTT Bluetooth Proxy Integration",
+        }
+
+    @property
     def native_value(self) -> int:
         """Return the state of the sensor."""
         return self._coordinator._stats.get(self._stat_key, 0)
@@ -107,6 +117,16 @@ class RuuviGatewayActiveGateways(SensorEntity):
         self._attr_unique_id = f"{entry_id}_active_gateways"
         self._attr_native_unit_of_measurement = "gateways"
         self._attr_icon = "mdi:access-point"
+
+    @property
+    def device_info(self):
+        """Return device info to link sensor to integration device."""
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": "Ruuvi Gateway Bluetooth Proxy",
+            "manufacturer": "Ruuvi",
+            "model": "MQTT Bluetooth Proxy Integration",
+        }
 
     @property
     def native_value(self) -> int:
