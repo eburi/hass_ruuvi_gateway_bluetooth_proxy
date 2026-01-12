@@ -50,7 +50,7 @@ class BLEObservation:
     gateway_mac: str
     ble_mac: str
     rssi: int
-    timestamp: int
+    timestamp: float  # Monotonic time
     data_hex: str
     advertisement_data: AdvertisementData | None = None
 
@@ -68,6 +68,9 @@ class RuuviGatewayCoordinator:
         # Buffers: gateway_mac -> {ble_mac -> observation}
         self._buffers: dict[str, dict[str, BLEObservation]] = defaultdict(dict)
         self._buffer_lock = asyncio.Lock()
+
+        # Calculate offset between epoch and monotonic time at startup
+        self._time_offset = time.time() - time.monotonic()
 
         # Statistics
         self._stats: dict[str, int] = defaultdict(int)
@@ -169,7 +172,9 @@ class RuuviGatewayCoordinator:
 
             # Extract fields
             rssi = payload.get("rssi", 0)
-            timestamp = payload.get("ts", payload.get("gwts", int(time.time())))
+            # Get epoch timestamp from gateway and convert to monotonic time
+            epoch_timestamp = payload.get("ts", payload.get("gwts", int(time.time())))
+            timestamp = epoch_timestamp - self._time_offset
             data_hex = payload.get("data", "")
 
             # Validate hex data
@@ -325,6 +330,7 @@ class RuuviGatewayCoordinator:
                 device=device,
                 advertisement=advertisement_data,
                 connectable=False,
+                time=observation.timestamp,
                 tx_power=advertisement_data.tx_power,
             )
 
