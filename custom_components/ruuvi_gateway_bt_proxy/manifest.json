@@ -1,10 +1,10 @@
 {
   "domain": "ruuvi_gateway_bt_proxy",
   "name": "Ruuvi Gateway Bluetooth Proxy",
-  "codeowners": ["@custom"],
+  "codeowners": ["@eburi"],
   "config_flow": true,
   "dependencies": ["mqtt", "bluetooth"],
-  "documentation": "https://github.com/yourusername/hass_ruuvi_gateway_bluetooth_proxy",
+  "documentation": "https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy",
   "iot_class": "local_push",
   "requirements": [],
   "version": "1.0.0"

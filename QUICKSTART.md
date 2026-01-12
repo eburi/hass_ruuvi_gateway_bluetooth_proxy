@@ -15,10 +15,13 @@
 
 ### Option 2: HACS Installation
 
-1. Add as custom repository in HACS
-2. Search for "Ruuvi Gateway Bluetooth Proxy"
-3. Install
-4. Restart Home Assistant
+1. Open HACS in Home Assistant
+2. Click on "Integrations"
+3. Click the three dots in the top right and select "Custom repositories"
+4. Add `https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy` as an Integration
+5. Search for "Ruuvi Gateway Bluetooth Proxy"
+6. Install
+7. Restart Home Assistant
 
 ## Prerequisites
 
@@ -200,4 +203,4 @@ This integration is designed to work with [Bermuda](https://github.com/agittins/
 For issues or questions:
 - Check the [README.md](README.md) for detailed documentation
 - Review [ARCHITECTURE.md](ARCHITECTURE.md) for technical details
-- Open an issue on GitHub
+- [Open an issue on GitHub](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/issues)

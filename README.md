@@ -48,10 +48,13 @@ Configure your Ruuvi Gateway to publish to MQTT:
 
 ### HACS (Recommended)
 
-1. Add this repository as a custom repository in HACS
-2. Search for "Ruuvi Gateway Bluetooth Proxy"
-3. Click Install
-4. Restart Home Assistant
+1. Open HACS in Home Assistant
+2. Click on "Integrations"
+3. Click the three dots in the top right and select "Custom repositories"
+4. Add `https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy` as an Integration
+5. Search for "Ruuvi Gateway Bluetooth Proxy"
+6. Click Install
+7. Restart Home Assistant
 
 ### Manual Installation
 
@@ -274,4 +277,4 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For issues, questions, or feature requests, please open an issue on GitHub.
+For issues, questions, or feature requests, please [open an issue on GitHub](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/issues).
