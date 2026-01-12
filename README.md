@@ -11,18 +11,25 @@ You must have the MQTT integration configured and connected in Home Assistant be
 ## Features
 
 - 🔌 **Uses HA's Built-in MQTT** - No external MQTT libraries, relies on Home Assistant's existing MQTT connection
-- 📡 **External Scanner Registration** - Registers each Ruuvi Gateway as a Bluetooth scanner source
-- 🎯 **Flexible Filtering** - Whitelist gateways and devices, filter by RSSI
+- 📡 **Bluetooth Scanner Registration** - Properly registers each Ruuvi Gateway as a remote Bluetooth scanner with HA's Bluetooth manager
+- 🏠 **Device Hierarchy** - Creates organized device structure: Gateway devices with child Bluetooth Proxy devices
+- 📶 **Gateway Status Monitoring** - Real-time online/offline status via MQTT gw_status messages
+- 🎯 **Flexible Filtering** - Whitelist gateways and devices, per-gateway RSSI filtering
 - 📦 **Intelligent Batching** - Coalesces observations within a configurable window to reduce processing
+- 🔄 **Timestamp Synchronization** - Converts gateway timestamps to monotonic time for accurate tracking
 - 📊 **Diagnostics & Debug Sensors** - Optional sensors for monitoring packet statistics
 - 🔧 **Full Config Flow** - Easy setup and configuration through the UI
+- 🎨 **Material Design Icons** - Custom icons for all entity types
 
 ## How It Works
 
 1. **Ruuvi Gateway** publishes BLE advertisements to MQTT topics in format: `ruuvi/<gateway_mac>/<ble_device_mac>`
 2. **This Integration** subscribes to those topics using HA's MQTT integration
-3. **Parses & Forwards** - Parses the BLE advertisement data and forwards it to HA's Bluetooth backend
-4. **Other Integrations** - Bluetooth-based integrations (like Bermuda for presence detection) can use the data
+3. **Device Creation** - Automatically creates Gateway and Bluetooth Proxy devices for each discovered gateway
+4. **Scanner Registration** - Registers each gateway as a remote Bluetooth scanner with HA's Bluetooth manager
+5. **Status Monitoring** - Subscribes to `ruuvi/<gateway_mac>/gw_status` for real-time online/offline tracking
+6. **Parses & Forwards** - Parses BLE advertisement data and forwards it to HA's Bluetooth backend with proper timestamps
+7. **Integration Ready** - Bluetooth-based integrations (like Bermuda BLE Trilateration) automatically detect and use the scanners
 
 ## Prerequisites
 
@@ -81,41 +88,72 @@ Configure your Ruuvi Gateway to publish to MQTT:
 | **Batch Window (ms)** | `250` | Time window for coalescing observations (50-5000ms) |
 | **Enable Debug Entity** | `false` | Enable debug sensors for monitoring statistics |
 
+### Devices and Entities
+
+The integration automatically creates the following devices and entities:
+
+#### Integration Device
+- **Purpose**: Houses integration-level statistics and debug information
+- **Entities** (only if debug entities enabled):
+  - `sensor.packets_received` - Total packets received from MQTT
+  - `sensor.packets_forwarded` - Packets successfully forwarded to Bluetooth backend
+  - `sensor.packets_dropped` - Packets filtered or dropped
+  - `sensor.active_gateways` - Number of active gateways (with MAC addresses in attributes)
+
+#### Per-Gateway Devices (created automatically for each discovered gateway)
+
+1. **Gateway Device** - Represents the physical Ruuvi Gateway
+   - **Entities**:
+     - `binary_sensor.<gateway>_status` - Gateway online/offline status (from MQTT gw_status)
+     - `number.<gateway>_rssi_filter` - Per-gateway RSSI filter threshold
+
+2. **Bluetooth Proxy Device** - Child device linked to gateway
+   - **Purpose**: Registered as a Bluetooth scanner source in HA's Bluetooth manager
+   - **Visible to**: Bermuda and other Bluetooth-based integrations
+   - **Scanner Source**: `ruuvi_gw_<mac_without_colons>`
+   - **Note**: Assign an **Area** to this device for Bermuda to use it for location tracking
+
 ### Per-Gateway RSSI Filtering
 
 Each Ruuvi Gateway device has an **RSSI Filter** number entity that allows you to set the minimum RSSI threshold for that specific gateway. Advertisements with RSSI below this threshold will be filtered out.
 
 - **Default**: `-127` (no filtering)
 - **Range**: `-127` to `0` dBm
-- **Location**: Each gateway device page → Controls → RSSI Filter
+- **Step**: `1` dBm
+- **Location**: Settings → Devices & Services → Ruuvi Gateway Bluetooth Proxy → [Gateway Device] → Controls → RSSI Filter
 
-This allows you to optimize filtering per gateway based on location and environment.
+This allows you to optimize filtering per gateway based on location and environment. For example, you might set a higher threshold (e.g., `-70`) for a gateway in a central location to only capture nearby devices, while leaving a remote gateway at the default to capture all devices.
 
 ### Example Configuration
 
 **Basic setup:**
 - Topic Prefix: `ruuvi/`
 - All other options at defaults
+- Per-gateway RSSI filters at default `-127` (no filtering)
 
-**Filtered setup:**
+**Filtered setup for presence detection:**
 - Topic Prefix: `ruuvi/`
 - Gateway Whitelist: `C1:05:28:BF:A7:E7, AA:BB:CC:DD:EE:FF`
-- Device Whitelist: `6B:EF:59:3C:53:D9`
+- Device Whitelist: (empty - track all devices)
 - Batch Window: `500`
 - Enable Debug Entity: `✓`
-- Per-gateway RSSI filters configured individually on each device
+- Per-gateway RSSI filters:
+  - Central gateway: `-60` (only nearby devices)
+  - Remote gateways: `-80` (wider range)
+- **Important**: Assign Areas to Bluetooth Proxy devices for Bermuda location tracking
 
 ## MQTT Topic Format
 
 The integration subscribes to topics matching:
 
 ```
-<prefix>+/+
+<prefix>+/+           # BLE advertisements
+<prefix>+/gw_status   # Gateway status messages
 ```
 
-Default: `ruuvi/+/+`
+Default: `ruuvi/+/+` and `ruuvi/+/gw_status`
 
-### Topic Structure
+### BLE Advertisement Topic Structure
 
 ```
 ruuvi/<GATEWAY_MAC>/<BLE_DEVICE_MAC>
@@ -123,7 +161,7 @@ ruuvi/<GATEWAY_MAC>/<BLE_DEVICE_MAC>
 
 Example: `ruuvi/C1:05:28:BF:A7:E7/6B:EF:59:3C:53:D9`
 
-### Payload Example
+### BLE Advertisement Payload Example
 
 ```json
 {
@@ -141,16 +179,45 @@ Example: `ruuvi/C1:05:28:BF:A7:E7/6B:EF:59:3C:53:D9`
 
 - `rssi` - Signal strength (integer)
 - `data` - Hex string of BLE advertisement data
-- `ts` or `gwts` - Unix timestamp (integer)
+- `ts` or `gwts` - Unix timestamp (integer, converted to monotonic time)
+
+### Gateway Status Topic Structure
+
+```
+ruuvi/<GATEWAY_MAC>/gw_status
+```
+
+Example: `ruuvi/C1:05:28:BF:A7:E7/gw_status`
+
+### Gateway Status Payload Example
+
+```json
+{
+  "state": "online"
+}
+```
+
+or
+
+```json
+{
+  "state": "offline"
+}
+```
+
+The status is reflected in the `binary_sensor.<gateway>_status` entity.
 
 ## Debug Sensors
 
-When debug entities are enabled, the following sensors are created:
+When debug entities are enabled, the following sensors are created under the Integration Device:
 
-- **Packets Received** - Total MQTT messages received
-- **Packets Forwarded** - Successfully forwarded to Bluetooth backend
-- **Packets Dropped** - Dropped due to filtering or errors
-- **Active Gateways** - Number of gateways seen (with MAC list in attributes)
+- **Packets Received** (`sensor.packets_received`) - Total MQTT messages received
+- **Packets Forwarded** (`sensor.packets_forwarded`) - Successfully forwarded to Bluetooth backend
+- **Packets Dropped** (`sensor.packets_dropped`) - Dropped due to filtering or errors
+- **Active Gateways** (`sensor.active_gateways`) - Number of gateways seen in the last activity window
+  - **Attributes**: Includes list of gateway MAC addresses with last seen timestamps
+
+These sensors use Material Design Icons for consistent UI appearance.
 
 ## Diagnostics
 
@@ -158,14 +225,16 @@ The integration provides comprehensive diagnostics data:
 
 1. Go to **Settings** → **Devices & Services**
 2. Find **Ruuvi Gateway Bluetooth Proxy**
-3. Click on the device
+3. Click on the integration (not individual devices)
 4. Click **Download Diagnostics**
 
 Diagnostics include:
-- Configuration (redacted)
-- Statistics counters
-- Gateway information
+- Configuration (sensitive data redacted)
+- Statistics counters (received, forwarded, dropped, filters)
+- Gateway information (last seen timestamps, status)
 - Registered scanner sources
+- RSSI filter values per gateway
+- Integration version and runtime info
 
 ## Troubleshooting
 
@@ -216,18 +285,28 @@ Check the debug sensors or diagnostics to see why packets are being dropped:
 
 This integration is designed to work seamlessly with the [Bermuda BLE Trilateration](https://github.com/agittins/bermuda) integration for presence detection:
 
-1. Install and configure this integration
-2. Install Bermuda
-3. Bermuda will automatically detect the Ruuvi Gateway scanners
-4. Configure Bermuda to use the scanner data for presence detection
+1. **Install this integration** and configure it
+2. **Install Bermuda** from HACS or manually
+3. **Assign Areas** to the Bluetooth Proxy devices:
+   - Go to Settings → Devices & Services → Ruuvi Gateway Bluetooth Proxy
+   - Click on each "Ruuvi Gateway {MAC} Bluetooth Proxy" device
+   - Click the pencil icon next to the device name
+   - Assign the device to an Area (e.g., "Living Room", "Bedroom")
+4. **Configure Bermuda** - It will automatically detect the Ruuvi Gateway scanners
+5. Bermuda will use the scanner data for multilateration-based presence detection
+
+**Important**: Bermuda requires scanners to have an assigned Area to use them for location tracking. Without an area assignment, the scanner will be detected but not used for positioning.
 
 ### Multiple Gateways
 
 The integration automatically handles multiple Ruuvi Gateways:
 
-- Each gateway is registered as a separate Bluetooth scanner source
-- Source name format: `ruuvi_gw_<mac_without_colons>`
+- Each gateway is registered as a separate remote Bluetooth scanner with HA's Bluetooth manager
+- Scanner source format: `ruuvi_gw_<mac_without_colons>` (e.g., `ruuvi_gw_c10528bfa7e7`)
 - Observations are coalesced per gateway to optimize processing
+- Each gateway has its own status sensor and RSSI filter
+- Gateway and Bluetooth Proxy devices are created automatically for each discovered gateway
+- Device hierarchy: Gateway Device (parent) → Bluetooth Proxy Device (child)
 
 ### Custom Topic Prefixes
 
@@ -254,16 +333,24 @@ custom_components/ruuvi_gateway_bt_proxy/
 ├── coordinator.py           # Main coordinator (MQTT + Bluetooth logic)
 ├── advertisement_parser.py  # BLE advertisement parsing
 ├── diagnostics.py           # Diagnostics data provider
-└── sensor.py               # Optional debug sensors
+├── sensor.py                # Optional debug sensors
+├── binary_sensor.py         # Gateway status sensors
+├── number.py                # Per-gateway RSSI filter entities
+├── icons.json               # Material Design Icons mapping
+├── manifest.json            # Integration metadata
+└── translations/
+    └── en.json              # English translations
 ```
 
 ## API Usage
 
 This integration uses only public Home Assistant APIs:
 
-- `homeassistant.components.mqtt.async_subscribe` - MQTT subscription
-- `homeassistant.components.bluetooth.async_register_scanner` - Scanner registration
-- `homeassistant.components.bluetooth.async_get_advertisement_callback` - Advertisement forwarding
+- `homeassistant.components.mqtt.async_subscribe` - MQTT subscription for BLE advertisements and gateway status
+- `homeassistant.components.bluetooth.async_register_scanner` - Registers Ruuvi Gateways as remote Bluetooth scanners
+- `homeassistant.components.bluetooth.async_get_advertisement_callback` - Gets callback for forwarding advertisements
+- `homeassistant.components.bluetooth.BluetoothServiceInfoBleak` - Formats advertisement data for the Bluetooth backend
+- `homeassistant.helpers.device_registry` - Creates and manages device entries
 
 ## Contributing
 

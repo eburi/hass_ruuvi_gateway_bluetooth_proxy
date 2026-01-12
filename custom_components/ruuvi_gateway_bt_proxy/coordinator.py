@@ -16,6 +16,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from homeassistant.components import bluetooth, mqtt
 from homeassistant.components.bluetooth import (
+    BluetoothScanningMode,
     BluetoothServiceInfoBleak,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -85,6 +86,9 @@ class RuuviGatewayCoordinator:
 
         # Registered scanners and devices
         self._registered_scanners: set[str] = set()
+        self._scanner_unregister_callbacks: dict[
+            str, Callable[[], None]
+        ] = {}  # source -> unregister callback
         self._gateway_devices: dict[str, str] = {}  # gateway_mac -> device_id
         self._device_registry: dr.DeviceRegistry | None = None
 
@@ -160,16 +164,18 @@ class RuuviGatewayCoordinator:
             self._unsubscribe()
             self._unsubscribe = None
 
+        # Unregister all scanners
+        for source, unregister_callback in self._scanner_unregister_callbacks.items():
+            _LOGGER.debug("Unregistering scanner %s", source)
+            unregister_callback()
+        self._scanner_unregister_callbacks.clear()
+
         # Cancel flush task
         if self._flush_task:
             self._flush_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._flush_task
             self._flush_task = None
-
-        # Mark scanners as unavailable (best effort)
-        for source in self._registered_scanners:
-            _LOGGER.debug("Scanner %s unregistered", source)
 
         self._registered_scanners.clear()
 
@@ -371,9 +377,48 @@ class RuuviGatewayCoordinator:
         source = f"ruuvi_gw_{gateway_mac.replace(':', '').lower()}"
 
         if source not in self._registered_scanners:
-            # Register scanner - in modern HA, we just need to call the callback
-            # The scanner registration is implicit when we call the advertisement callback
-            self._registered_scanners.add(source)
+            # Register scanner with HA Bluetooth integration
+            try:
+                from homeassistant.components.bluetooth import (
+                    BaseHaRemoteScanner,
+                    BluetoothScannerDevice,
+                )
+
+                # Create a scanner implementation
+                scanner = BaseHaRemoteScanner(
+                    scanner_id=source,
+                    name=f"Ruuvi Gateway {gateway_mac}",
+                    new_info_callback=self._bluetooth_callback,
+                    connector=None,  # Passive scanner, no connection support
+                    connectable=False,
+                )
+
+                # Register the scanner device with the Bluetooth manager
+                unregister_callback = bluetooth.async_register_scanner(
+                    self.hass,
+                    BluetoothScannerDevice(
+                        scanner=scanner,
+                        mode=BluetoothScanningMode.PASSIVE,
+                    ),
+                    connection_slots=0,  # Passive scanner, no connections
+                )
+
+                self._scanner_unregister_callbacks[source] = unregister_callback
+                self._registered_scanners.add(source)
+
+                _LOGGER.info(
+                    "Registered Bluetooth scanner with manager for gateway %s as source %s",
+                    gateway_mac,
+                    source,
+                )
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.error(
+                    "Failed to register scanner for gateway %s: %s",
+                    gateway_mac,
+                    err,
+                )
+                # Continue even if scanner registration fails - mark as registered to avoid retries
+                self._registered_scanners.add(source)
 
             # Initialize RSSI filter with default if not set
             if gateway_mac not in self._gateway_rssi_filters:
@@ -387,12 +432,6 @@ class RuuviGatewayCoordinator:
             # Notify discovery callbacks for new gateway
             for callback in self._gateway_discovered_callbacks:
                 callback(gateway_mac)
-
-            _LOGGER.info(
-                "Registered Bluetooth scanner for gateway %s as source %s",
-                gateway_mac,
-                source,
-            )
 
     def _create_gateway_device(self, gateway_mac: str) -> None:
         """Create a device entry for a Ruuvi Gateway."""
@@ -420,6 +459,9 @@ class RuuviGatewayCoordinator:
             proxy_device = self._device_registry.async_get_or_create(
                 config_entry_id=self.entry.entry_id,
                 identifiers={(DOMAIN, proxy_source)},
+                connections={
+                    (dr.CONNECTION_BLUETOOTH, gateway_mac)
+                },  # Use gateway MAC as connection
                 name=f"Ruuvi Gateway {gateway_mac} Bluetooth Proxy",
                 manufacturer="Ruuvi",
                 model="Bluetooth Proxy",

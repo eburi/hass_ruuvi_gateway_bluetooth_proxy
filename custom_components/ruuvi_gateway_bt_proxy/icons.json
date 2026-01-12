@@ -1,0 +1,18 @@
+{
+  "entity": {
+    "sensor": {
+      "packets_received": {
+        "default": "mdi:package-down"
+      },
+      "packets_forwarded": {
+        "default": "mdi:swap-horizontal"
+      },
+      "packets_dropped": {
+        "default": "mdi:package-variant-remove"
+      },
+      "active_gateways": {
+        "default": "mdi:access-point"
+      }
+    }
+  }
+}
