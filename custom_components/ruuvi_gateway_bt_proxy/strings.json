@@ -9,7 +9,6 @@
           "mqtt_qos": "MQTT QoS",
           "gateway_whitelist": "Gateway Whitelist (comma-separated MAC addresses, leave empty for all)",
           "device_whitelist": "Device Whitelist (comma-separated MAC addresses, leave empty for all)",
-          "rssi_min": "Minimum RSSI",
           "batch_window_ms": "Batch Window (ms)",
           "enable_debug_entity": "Enable Debug Sensors"
         }
@@ -33,7 +32,6 @@
           "mqtt_qos": "MQTT QoS",
           "gateway_whitelist": "Gateway Whitelist (comma-separated MAC addresses, leave empty for all)",
           "device_whitelist": "Device Whitelist (comma-separated MAC addresses, leave empty for all)",
-          "rssi_min": "Minimum RSSI",
           "batch_window_ms": "Batch Window (ms)",
           "enable_debug_entity": "Enable Debug Sensors"
         }

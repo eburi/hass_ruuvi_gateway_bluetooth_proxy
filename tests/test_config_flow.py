@@ -15,7 +15,6 @@ from custom_components.ruuvi_gateway_bt_proxy.const import (
     CONF_DEVICE_WHITELIST,
     CONF_GATEWAY_WHITELIST,
     CONF_QOS,
-    CONF_RSSI_MIN,
     CONF_TOPIC_PREFIX,
     DOMAIN,
 )
@@ -61,7 +60,6 @@ async def test_user_flow_success(hass: HomeAssistant):
             CONF_QOS: 0,
             CONF_GATEWAY_WHITELIST: "",
             CONF_DEVICE_WHITELIST: "",
-            CONF_RSSI_MIN: -80,
             CONF_BATCH_WINDOW_MS: 250,
             CONF_DEBUG_ENTITY: False,
         },
@@ -70,7 +68,6 @@ async def test_user_flow_success(hass: HomeAssistant):
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Ruuvi Gateway BT Proxy"
     assert result["data"][CONF_TOPIC_PREFIX] == "ruuvi/"
-    assert result["data"][CONF_RSSI_MIN] == -80
 
 
 async def test_user_flow_with_whitelist(hass: HomeAssistant):
@@ -86,7 +83,6 @@ async def test_user_flow_with_whitelist(hass: HomeAssistant):
             CONF_QOS: 1,
             CONF_GATEWAY_WHITELIST: "AA:BB:CC:DD:EE:FF",
             CONF_DEVICE_WHITELIST: "11:22:33:44:55:66, 77:88:99:AA:BB:CC",
-            CONF_RSSI_MIN: -60,
             CONF_BATCH_WINDOW_MS: 500,
             CONF_DEBUG_ENTITY: True,
         },

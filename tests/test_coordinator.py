@@ -10,7 +10,6 @@ from custom_components.ruuvi_gateway_bt_proxy.const import (
     CONF_DEVICE_WHITELIST,
     CONF_GATEWAY_WHITELIST,
     CONF_QOS,
-    CONF_RSSI_MIN,
     CONF_TOPIC_PREFIX,
     STAT_FILTERED_DEVICE,
     STAT_FILTERED_GATEWAY,
@@ -30,7 +29,6 @@ def mock_config():
         CONF_QOS: 0,
         CONF_GATEWAY_WHITELIST: [],
         CONF_DEVICE_WHITELIST: [],
-        CONF_RSSI_MIN: -127,
         CONF_BATCH_WINDOW_MS: 250,
     }
 
@@ -112,9 +110,10 @@ async def test_coordinator_filtering_rssi(
     hass: HomeAssistant, mock_config, mock_config_entry
 ):
     """Test coordinator RSSI filtering."""
-    mock_config[CONF_RSSI_MIN] = -60
-
     coordinator = RuuviGatewayCoordinator(hass, mock_config_entry, mock_config)
+
+    # Set RSSI filter for test gateway
+    coordinator.set_gateway_rssi_filter("AA:BB:CC:DD:EE:FF", -60)
 
     # Should pass
     assert coordinator._should_process("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66", -50)

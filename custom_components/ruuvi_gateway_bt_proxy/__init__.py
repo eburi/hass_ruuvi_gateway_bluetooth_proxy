@@ -13,7 +13,7 @@ from .coordinator import RuuviGatewayCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -34,9 +34,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Set up platforms if debug entity is enabled
+    # Always set up number platform for per-gateway RSSI filters
+    await hass.config_entries.async_forward_entry_setups(entry, [Platform.NUMBER])
+
+    # Set up sensor platform if debug entity is enabled
     if config.get(CONF_DEBUG_ENTITY, False):
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
 
     # Register update listener for options changes
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
@@ -48,12 +51,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Unload platforms
+    # Unload number platform (always loaded)
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        entry, [Platform.NUMBER]
+    )
+
+    # Unload sensor platform if debug entities were enabled
     config = {**entry.data, **entry.options}
     if config.get(CONF_DEBUG_ENTITY, False):
-        unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    else:
-        unload_ok = True
+        unload_ok = unload_ok and await hass.config_entries.async_unload_platforms(
+            entry, [Platform.SENSOR]
+        )
 
     if unload_ok:
         # Shut down coordinator

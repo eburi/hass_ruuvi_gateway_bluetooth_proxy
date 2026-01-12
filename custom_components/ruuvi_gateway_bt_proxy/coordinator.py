@@ -86,6 +86,10 @@ class RuuviGatewayCoordinator:
         self._gateway_devices: dict[str, str] = {}  # gateway_mac -> device_id
         self._device_registry: dr.DeviceRegistry | None = None
 
+        # Per-gateway RSSI filters
+        self._gateway_rssi_filters: dict[str, int] = {}  # gateway_mac -> rssi_min
+        self._gateway_discovered_callbacks: list[Callable[[str], None]] = []
+
         # Background tasks
         self._background_tasks: set[asyncio.Task] = set()
 
@@ -232,8 +236,8 @@ class RuuviGatewayCoordinator:
             self._stats[STAT_PACKETS_DROPPED] += 1
             return False
 
-        # RSSI filter
-        rssi_min = self.config.get(CONF_RSSI_MIN, -127)
+        # Per-gateway RSSI filter
+        rssi_min = self.get_gateway_rssi_filter(gateway_mac)
         if rssi < rssi_min:
             self._stats[STAT_FILTERED_RSSI] += 1
             self._stats[STAT_PACKETS_DROPPED] += 1
@@ -294,8 +298,18 @@ class RuuviGatewayCoordinator:
             # The scanner registration is implicit when we call the advertisement callback
             self._registered_scanners.add(source)
 
+            # Initialize RSSI filter with default if not set
+            if gateway_mac not in self._gateway_rssi_filters:
+                from .const import DEFAULT_RSSI_MIN
+
+                self._gateway_rssi_filters[gateway_mac] = DEFAULT_RSSI_MIN
+
             # Create device in device registry
             self._create_gateway_device(gateway_mac)
+
+            # Notify discovery callbacks for new gateway
+            for callback in self._gateway_discovered_callbacks:
+                callback(gateway_mac)
 
             _LOGGER.info(
                 "Registered Bluetooth scanner for gateway %s as source %s",
@@ -391,6 +405,27 @@ class RuuviGatewayCoordinator:
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.exception("Error forwarding to Bluetooth: %s", err)
             self._stats[STAT_PACKETS_DROPPED] += 1
+
+    def register_gateway_discovered_callback(
+        self, callback: Callable[[str], None]
+    ) -> None:
+        """Register a callback to be called when a new gateway is discovered."""
+        self._gateway_discovered_callbacks.append(callback)
+
+    def get_gateway_macs(self) -> list[str]:
+        """Get list of all discovered gateway MACs."""
+        return list(self._gateway_last_seen.keys())
+
+    def get_gateway_rssi_filter(self, gateway_mac: str) -> int:
+        """Get RSSI filter threshold for a gateway."""
+        from .const import DEFAULT_RSSI_MIN
+
+        return self._gateway_rssi_filters.get(gateway_mac, DEFAULT_RSSI_MIN)
+
+    def set_gateway_rssi_filter(self, gateway_mac: str, rssi_min: int) -> None:
+        """Set RSSI filter threshold for a gateway."""
+        self._gateway_rssi_filters[gateway_mac] = rssi_min
+        _LOGGER.debug("Set RSSI filter for gateway %s to %d", gateway_mac, rssi_min)
 
     def get_diagnostics(self) -> dict[str, Any]:
         """Get diagnostics data."""

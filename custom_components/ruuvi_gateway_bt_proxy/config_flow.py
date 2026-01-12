@@ -17,11 +17,9 @@ from .const import (
     CONF_DEVICE_WHITELIST,
     CONF_GATEWAY_WHITELIST,
     CONF_QOS,
-    CONF_RSSI_MIN,
     CONF_TOPIC_PREFIX,
     DEFAULT_BATCH_WINDOW_MS,
     DEFAULT_QOS,
-    DEFAULT_RSSI_MIN,
     DEFAULT_TOPIC_PREFIX,
     DOMAIN,
 )
@@ -100,9 +98,6 @@ class RuuviGatewayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Optional(CONF_GATEWAY_WHITELIST, default=""): cv.string,
                 vol.Optional(CONF_DEVICE_WHITELIST, default=""): cv.string,
-                vol.Optional(CONF_RSSI_MIN, default=DEFAULT_RSSI_MIN): vol.All(
-                    vol.Coerce(int), vol.Range(min=-127, max=0)
-                ),
                 vol.Optional(
                     CONF_BATCH_WINDOW_MS, default=DEFAULT_BATCH_WINDOW_MS
                 ): vol.All(vol.Coerce(int), vol.Range(min=50, max=5000)),
@@ -186,10 +181,6 @@ class RuuviGatewayOptionsFlow(config_entries.OptionsFlow):
                     if isinstance(device_whitelist, list)
                     else device_whitelist,
                 ): cv.string,
-                vol.Optional(
-                    CONF_RSSI_MIN,
-                    default=current_data.get(CONF_RSSI_MIN, DEFAULT_RSSI_MIN),
-                ): vol.All(vol.Coerce(int), vol.Range(min=-127, max=0)),
                 vol.Optional(
                     CONF_BATCH_WINDOW_MS,
                     default=current_data.get(
