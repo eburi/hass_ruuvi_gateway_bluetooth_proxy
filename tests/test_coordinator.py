@@ -72,11 +72,13 @@ def test_ble_observation_creation():
     assert obs.rssi == -60
 
 
-async def test_coordinator_filtering_gateway(hass: HomeAssistant, mock_config):
+async def test_coordinator_filtering_gateway(
+    hass: HomeAssistant, mock_config, mock_config_entry
+):
     """Test coordinator gateway whitelist filtering."""
     mock_config[CONF_GATEWAY_WHITELIST] = ["AA:BB:CC:DD:EE:FF"]
 
-    coordinator = RuuviGatewayCoordinator(hass, mock_config)
+    coordinator = RuuviGatewayCoordinator(hass, mock_config_entry, mock_config)
 
     # Should pass
     assert coordinator._should_process("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66", -50)
@@ -88,11 +90,13 @@ async def test_coordinator_filtering_gateway(hass: HomeAssistant, mock_config):
     assert coordinator._stats[STAT_FILTERED_GATEWAY] == 1
 
 
-async def test_coordinator_filtering_device(hass: HomeAssistant, mock_config):
+async def test_coordinator_filtering_device(
+    hass: HomeAssistant, mock_config, mock_config_entry
+):
     """Test coordinator device whitelist filtering."""
     mock_config[CONF_DEVICE_WHITELIST] = ["11:22:33:44:55:66"]
 
-    coordinator = RuuviGatewayCoordinator(hass, mock_config)
+    coordinator = RuuviGatewayCoordinator(hass, mock_config_entry, mock_config)
 
     # Should pass
     assert coordinator._should_process("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66", -50)
@@ -104,11 +108,13 @@ async def test_coordinator_filtering_device(hass: HomeAssistant, mock_config):
     assert coordinator._stats[STAT_FILTERED_DEVICE] == 1
 
 
-async def test_coordinator_filtering_rssi(hass: HomeAssistant, mock_config):
+async def test_coordinator_filtering_rssi(
+    hass: HomeAssistant, mock_config, mock_config_entry
+):
     """Test coordinator RSSI filtering."""
     mock_config[CONF_RSSI_MIN] = -60
 
-    coordinator = RuuviGatewayCoordinator(hass, mock_config)
+    coordinator = RuuviGatewayCoordinator(hass, mock_config_entry, mock_config)
 
     # Should pass
     assert coordinator._should_process("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66", -50)
@@ -120,9 +126,11 @@ async def test_coordinator_filtering_rssi(hass: HomeAssistant, mock_config):
     assert coordinator._stats[STAT_FILTERED_RSSI] == 1
 
 
-async def test_coordinator_coalescing(hass: HomeAssistant, mock_config):
+async def test_coordinator_coalescing(
+    hass: HomeAssistant, mock_config, mock_config_entry
+):
     """Test observation coalescing by RSSI."""
-    coordinator = RuuviGatewayCoordinator(hass, mock_config)
+    coordinator = RuuviGatewayCoordinator(hass, mock_config_entry, mock_config)
 
     obs1 = BLEObservation(
         gateway_mac="AA:BB:CC:DD:EE:FF",

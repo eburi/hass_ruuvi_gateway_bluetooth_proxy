@@ -22,7 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config = {**entry.data, **entry.options}
 
     # Create coordinator
-    coordinator = RuuviGatewayCoordinator(hass, config)
+    coordinator = RuuviGatewayCoordinator(hass, entry, config)
 
     try:
         await coordinator.async_setup()

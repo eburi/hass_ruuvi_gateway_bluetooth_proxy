@@ -18,8 +18,10 @@ from homeassistant.components import bluetooth, mqtt
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 
 from .advertisement_parser import parse_advertisement_data
 from .const import (
@@ -58,9 +60,12 @@ class BLEObservation:
 class RuuviGatewayCoordinator:
     """Coordinator to manage MQTT subscriptions and Bluetooth forwarding."""
 
-    def __init__(self, hass: HomeAssistant, config: dict[str, Any]) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, config: dict[str, Any]
+    ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
+        self.entry = entry
         self.config = config
         self._unsubscribe: Callable[[], None] | None = None
         self._flush_task: asyncio.Task | None = None
@@ -76,8 +81,10 @@ class RuuviGatewayCoordinator:
         self._stats: dict[str, int] = defaultdict(int)
         self._gateway_last_seen: dict[str, float] = {}
 
-        # Registered scanners
+        # Registered scanners and devices
         self._registered_scanners: set[str] = set()
+        self._gateway_devices: dict[str, str] = {}  # gateway_mac -> device_id
+        self._device_registry: dr.DeviceRegistry | None = None
 
         # Background tasks
         self._background_tasks: set[asyncio.Task] = set()
@@ -87,6 +94,9 @@ class RuuviGatewayCoordinator:
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
+        # Get device registry
+        self._device_registry = dr.async_get(self.hass)
+
         # Check if MQTT integration is available
         if not self.hass.data.get(mqtt.DATA_MQTT):
             raise ConfigEntryNotReady("MQTT integration is not set up")
@@ -283,10 +293,47 @@ class RuuviGatewayCoordinator:
             # Register scanner - in modern HA, we just need to call the callback
             # The scanner registration is implicit when we call the advertisement callback
             self._registered_scanners.add(source)
+
+            # Create device in device registry
+            self._create_gateway_device(gateway_mac)
+
             _LOGGER.info(
                 "Registered Bluetooth scanner for gateway %s as source %s",
                 gateway_mac,
                 source,
+            )
+
+    def _create_gateway_device(self, gateway_mac: str) -> None:
+        """Create a device entry for a Ruuvi Gateway."""
+        if not self._device_registry:
+            _LOGGER.warning("Device registry not available")
+            return
+
+        # Skip if device already created
+        if gateway_mac in self._gateway_devices:
+            return
+
+        try:
+            # Create device with gateway MAC as identifier
+            device = self._device_registry.async_get_or_create(
+                config_entry_id=self.entry.entry_id,
+                identifiers={("ruuvi_gateway_bt_proxy", gateway_mac)},
+                connections={(dr.CONNECTION_NETWORK_MAC, gateway_mac)},
+                name=f"Ruuvi Gateway {gateway_mac}",
+                manufacturer="Ruuvi",
+                model="Ruuvi Gateway",
+            )
+
+            self._gateway_devices[gateway_mac] = device.id
+
+            _LOGGER.info(
+                "Created device for Ruuvi Gateway %s (device_id: %s)",
+                gateway_mac,
+                device.id,
+            )
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.error(
+                "Failed to create device for gateway %s: %s", gateway_mac, err
             )
 
     async def _forward_to_bluetooth(self, observation: BLEObservation) -> None:
