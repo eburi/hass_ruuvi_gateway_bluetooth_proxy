@@ -325,7 +325,7 @@ class RuuviGatewayCoordinator:
                 device=device,
                 advertisement=advertisement_data,
                 connectable=False,
-                time=observation.timestamp,
+                time=time.time(),  # Use current time for HA's tracking
                 tx_power=advertisement_data.tx_power,
             )
 
