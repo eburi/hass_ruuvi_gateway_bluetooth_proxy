@@ -257,119 +257,121 @@ Device info is categorized as **Link**, **Primary**, or **Secondary**:
 - Uses default_manufacturer, default_model, default_name
 - Values overridden if primary values set later
 
-## Implementation for Ruuvi Gateway
+## Implementation for Ruuvi Gateway Bluetooth Proxy
 
-### Recommended Approach for Your Integration
+### Current Implementation (Working)
 
-**Option A: Devices without entities**
+Our integration uses **Method 2** (manual device creation) combined with **automatic Bluetooth scanner registration**.
 
-If you only want to show gateway devices without creating entities:
+#### Device Structure
 
-```python
-# In __init__.py async_setup_entry()
-
-from homeassistant.helpers import device_registry as dr
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Ruuvi Gateway Bluetooth Proxy from a config entry."""
-    coordinator = RuuviGatewayCoordinator(hass, config)
-    await coordinator.async_setup()
-    
-    # Create devices for discovered gateways
-    device_registry = dr.async_get(hass)
-    
-    # You'll need to track discovered gateways in coordinator
-    for gateway_mac in coordinator.discovered_gateways:
-        device_registry.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, gateway_mac)},
-            connections={(dr.CONNECTION_NETWORK_MAC, gateway_mac)},
-            name=f"Ruuvi Gateway {gateway_mac[-5:]}",
-            manufacturer="Ruuvi",
-            model="Ruuvi Gateway",
-        )
+```
+Ruuvi Gateway Bluetooth Proxy Integration
+└── Gateway Device (ruuvi_gateway_bt_proxy domain)
+    ├── Created manually via device_registry.async_get_or_create()
+    ├── Entities:
+    │   ├── binary_sensor.gateway_status (online/offline)
+    │   └── number.gateway_rssi_filter (per-gateway RSSI threshold)
+    └── Linked Device:
+        └── Bluetooth Scanner (bluetooth domain)
+            ├── Created automatically by Bluetooth integration
+            ├── Linked via source_device_id
+            └── Source: <gateway_mac>
 ```
 
-**Option B: Devices with diagnostic entities**
-
-If you want entities showing gateway statistics:
+#### Implementation in coordinator.py
 
 ```python
-# In sensor.py
-
-class RuuviGatewayStatsSensor(SensorEntity):
-    """Gateway statistics sensor."""
+def _ensure_scanner_registered(self, gateway_mac: str) -> None:
+    """Ensure a scanner is registered for the given gateway."""
+    source = gateway_mac
     
-    def __init__(self, coordinator: RuuviGatewayCoordinator, gateway_mac: str):
-        """Initialize sensor."""
-        self._coordinator = coordinator
-        self._gateway_mac = gateway_mac
-        self._attr_unique_id = f"{gateway_mac}_stats"
-        self._attr_name = f"Ruuvi Gateway {gateway_mac[-5:]} Statistics"
-    
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._gateway_mac)},
-            connections={(dr.CONNECTION_NETWORK_MAC, self._gateway_mac)},
-            name=f"Ruuvi Gateway {self._gateway_mac[-5:]}",
-            manufacturer="Ruuvi",
-            model="Ruuvi Gateway",
-        )
-```
-
-### Dynamic Gateway Discovery
-
-Track gateways in coordinator:
-
-```python
-class RuuviGatewayCoordinator:
-    """Coordinator to manage MQTT subscriptions and Bluetooth forwarding."""
-    
-    def __init__(self, hass: HomeAssistant, config: dict[str, Any]) -> None:
-        """Initialize the coordinator."""
-        self.hass = hass
-        self.config = config
-        self._gateway_info: dict[str, dict[str, Any]] = {}
-        self._device_registry_callback: Callable | None = None
-    
-    def _mqtt_message_received(self, msg: mqtt.ReceiveMessage) -> None:
-        """Handle incoming MQTT message."""
-        gateway_mac = topic_parts[-2].upper()
+    if source not in self._registered_scanners:
+        # Step 1: Create gateway device first
+        self._create_gateway_device(gateway_mac)
         
-        # Track new gateway
-        if gateway_mac not in self._gateway_info:
-            self._gateway_info[gateway_mac] = {
-                "first_seen": time.time(),
-                "last_seen": time.time(),
-                "packet_count": 0,
-            }
-            # Trigger device creation
-            self.hass.async_create_task(
-                self._create_gateway_device(gateway_mac)
-            )
+        # Step 2: Create and register scanner
+        from habluetooth import BaseHaRemoteScanner
+        from homeassistant.components.bluetooth import async_register_scanner
         
-        self._gateway_info[gateway_mac]["last_seen"] = time.time()
-        self._gateway_info[gateway_mac]["packet_count"] += 1
-    
-    async def _create_gateway_device(self, gateway_mac: str) -> None:
-        """Create device registry entry for gateway."""
-        from homeassistant.helpers import device_registry as dr
-        
-        device_registry = dr.async_get(self.hass)
-        
-        device_registry.async_get_or_create(
-            config_entry_id=self._entry_id,  # Store this in __init__
-            identifiers={(DOMAIN, gateway_mac)},
-            connections={(dr.CONNECTION_NETWORK_MAC, gateway_mac)},
-            name=f"Ruuvi Gateway {gateway_mac[-5:]}",
-            manufacturer="Ruuvi",
-            model="Ruuvi Gateway",
+        scanner = BaseHaRemoteScanner(
+            source,  # MAC address as source
+            source,  # adapter - use same MAC
+            None,    # connector - no connection support
+            False,   # connectable - passive scanner only
         )
         
-        _LOGGER.info("Created device for gateway %s", gateway_mac)
+        # Get device ID for linking
+        gateway_device_id = self._gateway_devices.get(gateway_mac)
+        
+        # Step 3: Register scanner with Bluetooth integration
+        # This automatically creates a scanner device in bluetooth domain
+        unregister_callback = async_register_scanner(
+            self.hass,
+            scanner,
+            connection_slots=0,
+            source_domain=DOMAIN,  # Our integration domain
+            source_model="Ruuvi Gateway",
+            source_config_entry_id=self.entry.entry_id,
+            source_device_id=gateway_device_id,  # Links to our device
+        )
+        
+        # Step 4: Set up the scanner
+        scanner.async_setup()
+        
+        # Store for cleanup
+        self._scanner_unregister_callbacks[source] = unregister_callback
+        self._registered_scanners.add(source)
+
+def _create_gateway_device(self, gateway_mac: str) -> None:
+    """Create a device entry for a Ruuvi Gateway."""
+    if gateway_mac in self._gateway_devices:
+        return
+    
+    device_registry = dr.async_get(self.hass)
+    
+    # Create gateway device
+    gateway_device = device_registry.async_get_or_create(
+        config_entry_id=self.entry.entry_id,
+        identifiers={(DOMAIN, gateway_mac)},
+        connections={(dr.CONNECTION_NETWORK_MAC, gateway_mac)},
+        name=f"Ruuvi Gateway {gateway_mac}",
+        manufacturer="Ruuvi",
+        model="Ruuvi Gateway",
+    )
+    
+    # Note: Bluetooth scanner device is automatically created by
+    # Bluetooth integration when we call async_register_scanner
+    # with source_device_id parameter
+    
+    self._gateway_devices[gateway_mac] = gateway_device.id
 ```
+
+#### Key Points
+
+1. **Gateway Device** - Created manually in our integration domain
+   - Has entities for status and RSSI filter
+   - Visible in our integration's device list
+
+2. **Scanner Device** - Created automatically by Bluetooth integration
+   - Created when `async_register_scanner` is called with `source_device_id`
+   - Appears in Bluetooth integration's device list
+   - Linked to gateway device via `source_device_id`
+   - Source is the gateway MAC address
+
+3. **Why This Works**
+   - Matches ESPHome pattern for Bluetooth proxy devices
+   - Bermuda and other integrations recognize the scanner
+   - Clean separation of concerns (gateway vs scanner)
+   - Proper parent-child relationship via linking
+
+4. **Common Mistakes to Avoid**
+   - ❌ Don't manually create a device for the scanner in your domain
+   - ❌ Don't use custom source strings like `"ruuvi_gw_<mac>"`
+   - ❌ Don't forget to pass `source_device_id` to link devices
+   - ✅ Do let Bluetooth integration create the scanner device
+   - ✅ Do use gateway MAC directly as source
+   - ✅ Do create gateway device before registering scanner
 
 ## Best Practices
 

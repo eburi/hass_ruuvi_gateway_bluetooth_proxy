@@ -12,7 +12,7 @@ You must have the MQTT integration configured and connected in Home Assistant be
 
 - 🔌 **Uses HA's Built-in MQTT** - No external MQTT libraries, relies on Home Assistant's existing MQTT connection
 - 📡 **Bluetooth Scanner Registration** - Properly registers each Ruuvi Gateway as a remote Bluetooth scanner with HA's Bluetooth manager
-- 🏠 **Device Hierarchy** - Creates organized device structure: Gateway devices with child Bluetooth Proxy devices
+- 🏠 **Device Hierarchy** - Creates organized device structure: Gateway devices with linked Bluetooth scanner devices
 - 📶 **Gateway Status Monitoring** - Real-time online/offline status via MQTT gw_status messages
 - 🎯 **Flexible Filtering** - Whitelist gateways and devices, per-gateway RSSI filtering
 - 📦 **Intelligent Batching** - Coalesces observations within a configurable window to reduce processing
@@ -25,8 +25,10 @@ You must have the MQTT integration configured and connected in Home Assistant be
 
 1. **Ruuvi Gateway** publishes BLE advertisements to MQTT topics in format: `ruuvi/<gateway_mac>/<ble_device_mac>`
 2. **This Integration** subscribes to those topics using HA's MQTT integration
-3. **Device Creation** - Automatically creates Gateway and Bluetooth Proxy devices for each discovered gateway
-4. **Scanner Registration** - Registers each gateway as a remote Bluetooth scanner with HA's Bluetooth manager
+3. **Device Creation** - Automatically creates Gateway device for each discovered gateway
+4. **Scanner Registration** - Registers each gateway as a remote Bluetooth scanner using `async_register_scanner`
+   - Bluetooth integration automatically creates scanner device in `bluetooth` domain
+   - Scanner device is linked to gateway device via `source_device_id`
 5. **Status Monitoring** - Subscribes to `ruuvi/<gateway_mac>/gw_status` for real-time online/offline tracking
 6. **Parses & Forwards** - Parses BLE advertisement data and forwards it to HA's Bluetooth backend with proper timestamps
 7. **Integration Ready** - Bluetooth-based integrations (like Bermuda BLE Trilateration) automatically detect and use the scanners
@@ -102,16 +104,18 @@ The integration automatically creates the following devices and entities:
 
 #### Per-Gateway Devices (created automatically for each discovered gateway)
 
-1. **Gateway Device** - Represents the physical Ruuvi Gateway
+1. **Gateway Device** - Represents the physical Ruuvi Gateway (in `ruuvi_gateway_bt_proxy` domain)
    - **Entities**:
      - `binary_sensor.<gateway>_status` - Gateway online/offline status (from MQTT gw_status)
      - `number.<gateway>_rssi_filter` - Per-gateway RSSI filter threshold
 
-2. **Bluetooth Proxy Device** - Child device linked to gateway
+2. **Bluetooth Scanner Device** - Automatically created by HA's Bluetooth integration (in `bluetooth` domain)
    - **Purpose**: Registered as a Bluetooth scanner source in HA's Bluetooth manager
+   - **Linked to**: Gateway device via `source_device_id`
    - **Visible to**: Bermuda and other Bluetooth-based integrations
    - **Scanner Source**: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
    - **Note**: Assign an **Area** to this device for Bermuda to use it for location tracking
+   - **Automatic**: Created by Bluetooth integration when scanner is registered with `async_register_scanner`
 
 ### Per-Gateway RSSI Filtering
 
@@ -140,7 +144,7 @@ This allows you to optimize filtering per gateway based on location and environm
 - Per-gateway RSSI filters:
   - Central gateway: `-60` (only nearby devices)
   - Remote gateways: `-80` (wider range)
-- **Important**: Assign Areas to Bluetooth Proxy devices for Bermuda location tracking
+- **Important**: Assign Areas to Bluetooth scanner devices for Bermuda location tracking
 
 ## MQTT Topic Format
 
@@ -287,7 +291,7 @@ This integration is designed to work seamlessly with the [Bermuda BLE Trilaterat
 
 1. **Install this integration** and configure it
 2. **Install Bermuda** from HACS or manually
-3. **Assign Areas** to the Bluetooth Proxy devices:
+3. **Assign Areas** to the Bluetooth scanner devices:
    - Go to Settings → Devices & Services → Ruuvi Gateway Bluetooth Proxy
    - Click on each "Ruuvi Gateway {MAC} Bluetooth Proxy" device
    - Click the pencil icon next to the device name
@@ -303,10 +307,11 @@ The integration automatically handles multiple Ruuvi Gateways:
 
 - Each gateway is registered as a separate remote Bluetooth scanner with HA's Bluetooth manager
 - Scanner source format: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
+- Bluetooth scanner device automatically created in `bluetooth` domain, linked to gateway device
 - Observations are coalesced per gateway to optimize processing
 - Each gateway has its own status sensor and RSSI filter
-- Gateway and Bluetooth Proxy devices are created automatically for each discovered gateway
-- Device hierarchy: Gateway Device (parent) → Bluetooth Proxy Device (child)
+- Gateway and Bluetooth scanner devices are created automatically for each discovered gateway
+- Device hierarchy: Gateway Device (in ruuvi_gateway_bt_proxy domain) → Bluetooth Scanner Device (in bluetooth domain, auto-created)
 
 ### Custom Topic Prefixes
 

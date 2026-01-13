@@ -105,7 +105,11 @@ Should show:
 
 Settings → Devices & Services → Bluetooth
 
-Should show Bluetooth devices being detected from your Ruuvi Gateway scanners.
+You should see:
+- A Bluetooth scanner device for each Ruuvi Gateway (in the `bluetooth` domain)
+- Scanner source will be the gateway MAC (e.g., `C1:05:28:BF:A7:E7`)
+- Scanner device is automatically linked to the gateway device created by this integration
+- Bluetooth devices being detected from your Ruuvi Gateway scanners
 
 ## Troubleshooting
 

@@ -20,6 +20,12 @@ from custom_components.ruuvi_gateway_bt_proxy.coordinator import (
     RuuviGatewayCoordinator,
 )
 
+# Note: Scanner registration tests require mocking HomeAssistant's Bluetooth integration
+# The scanner uses BaseHaRemoteScanner(source, adapter, connector, connectable)
+# and async_register_scanner(hass, scanner, connection_slots, source_domain, source_model,
+#                            source_config_entry_id, source_device_id)
+# These are tested via integration tests with the full HA stack.
+
 
 @pytest.fixture
 def mock_config():

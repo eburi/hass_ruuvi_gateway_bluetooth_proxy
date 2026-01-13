@@ -63,9 +63,10 @@ hass_ruuvi_gateway_bluetooth_proxy/
 - ✅ Graceful fallback on parsing errors
 
 ### 6. Bluetooth Backend Integration
-- ✅ Registers external scanner per gateway
-- ✅ Uses `bluetooth.async_register_scanner`
-- ✅ Uses `bluetooth.async_get_advertisement_callback`
+- ✅ Registers external scanner per gateway using `async_register_scanner`
+- ✅ Passes `source_domain`, `source_model`, `source_config_entry_id`, `source_device_id`
+- ✅ Bluetooth integration automatically creates scanner device in `bluetooth` domain
+- ✅ Scanner device linked to gateway device via `source_device_id`
 - ✅ Creates proper `BluetoothServiceInfoBleak` objects
 - ✅ Stable source naming: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
 

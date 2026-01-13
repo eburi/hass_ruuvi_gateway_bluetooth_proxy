@@ -394,9 +394,8 @@ class RuuviGatewayCoordinator:
                 # Create a remote scanner using the gateway MAC as source
                 # This matches how USB dongles and ESPHome devices register
                 scanner = BaseHaRemoteScanner(
-                    self.hass,
-                    source,  # MAC address as source
-                    f"Ruuvi Gateway {gateway_mac}",  # Descriptive name
+                    source,  # MAC address as source (first argument!)
+                    source,  # adapter - use same MAC as adapter ID
                     None,  # connector - no connection support for passive scanning
                     False,  # connectable - passive scanner only
                 )
