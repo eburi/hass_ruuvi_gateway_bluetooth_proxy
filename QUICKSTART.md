@@ -95,7 +95,7 @@ Should show:
   "gateways": {
     "C1:05:28:BF:A7:E7": {
       "last_seen": 1768151705.123,
-      "source": "ruuvi_gw_c10528bfa7e7"
+      "source": "C1:05:28:BF:A7:E7"
     }
   }
 }

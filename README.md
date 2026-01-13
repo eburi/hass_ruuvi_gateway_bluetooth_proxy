@@ -110,7 +110,7 @@ The integration automatically creates the following devices and entities:
 2. **Bluetooth Proxy Device** - Child device linked to gateway
    - **Purpose**: Registered as a Bluetooth scanner source in HA's Bluetooth manager
    - **Visible to**: Bermuda and other Bluetooth-based integrations
-   - **Scanner Source**: `ruuvi_gw_<mac_without_colons>`
+   - **Scanner Source**: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
    - **Note**: Assign an **Area** to this device for Bermuda to use it for location tracking
 
 ### Per-Gateway RSSI Filtering
@@ -302,7 +302,7 @@ This integration is designed to work seamlessly with the [Bermuda BLE Trilaterat
 The integration automatically handles multiple Ruuvi Gateways:
 
 - Each gateway is registered as a separate remote Bluetooth scanner with HA's Bluetooth manager
-- Scanner source format: `ruuvi_gw_<mac_without_colons>` (e.g., `ruuvi_gw_c10528bfa7e7`)
+- Scanner source format: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
 - Observations are coalesced per gateway to optimize processing
 - Each gateway has its own status sensor and RSSI filter
 - Gateway and Bluetooth Proxy devices are created automatically for each discovered gateway

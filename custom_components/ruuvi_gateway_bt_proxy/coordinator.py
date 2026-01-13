@@ -16,7 +16,6 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from homeassistant.components import bluetooth, mqtt
 from homeassistant.components.bluetooth import (
-    BluetoothScanningMode,
     BluetoothServiceInfoBleak,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -374,42 +373,60 @@ class RuuviGatewayCoordinator:
 
     def _ensure_scanner_registered(self, gateway_mac: str) -> None:
         """Ensure a scanner is registered for the given gateway."""
-        source = f"ruuvi_gw_{gateway_mac.replace(':', '').lower()}"
+        # Use gateway MAC directly as source (like USB dongles do)
+        source = gateway_mac
 
         if source not in self._registered_scanners:
+            # Create device in device registry first (needed for scanner registration)
+            self._create_gateway_device(gateway_mac)
+
+            # Initialize RSSI filter with default if not set
+            if gateway_mac not in self._gateway_rssi_filters:
+                from .const import DEFAULT_RSSI_MIN
+
+                self._gateway_rssi_filters[gateway_mac] = DEFAULT_RSSI_MIN
+
             # Register scanner with HA Bluetooth integration
             try:
-                from homeassistant.components.bluetooth import (
-                    BaseHaRemoteScanner,
-                    BluetoothScannerDevice,
-                )
+                from habluetooth import BaseHaRemoteScanner
+                from homeassistant.components.bluetooth import async_register_scanner
 
-                # Create a scanner implementation
+                # Create a remote scanner using the gateway MAC as source
+                # This matches how USB dongles and ESPHome devices register
                 scanner = BaseHaRemoteScanner(
-                    scanner_id=source,
-                    name=f"Ruuvi Gateway {gateway_mac}",
-                    new_info_callback=self._bluetooth_callback,
-                    connector=None,  # Passive scanner, no connection support
-                    connectable=False,
+                    self.hass,
+                    source,  # MAC address as source
+                    f"Ruuvi Gateway {gateway_mac}",  # Descriptive name
+                    None,  # connector - no connection support for passive scanning
+                    False,  # connectable - passive scanner only
                 )
 
-                # Register the scanner device with the Bluetooth manager
-                unregister_callback = bluetooth.async_register_scanner(
+                # Get the gateway device ID for linking
+                gateway_device_id = self._gateway_devices.get(gateway_mac)
+
+                # Register scanner with the Bluetooth manager
+                # This creates the Bluetooth scanner device in the bluetooth domain
+                unregister_callback = async_register_scanner(
                     self.hass,
-                    BluetoothScannerDevice(
-                        scanner=scanner,
-                        mode=BluetoothScanningMode.PASSIVE,
-                    ),
+                    scanner,
                     connection_slots=0,  # Passive scanner, no connections
+                    source_domain=DOMAIN,  # Our integration domain
+                    source_model="Ruuvi Gateway",
+                    source_config_entry_id=self.entry.entry_id,
+                    source_device_id=gateway_device_id,  # Link to our gateway device
                 )
+
+                # Set up the scanner
+                scanner.async_setup()
 
                 self._scanner_unregister_callbacks[source] = unregister_callback
                 self._registered_scanners.add(source)
 
                 _LOGGER.info(
-                    "Registered Bluetooth scanner with manager for gateway %s as source %s",
+                    "Registered Bluetooth scanner for gateway %s with source %s (device_id: %s)",
                     gateway_mac,
                     source,
+                    gateway_device_id,
                 )
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.error(
@@ -419,15 +436,6 @@ class RuuviGatewayCoordinator:
                 )
                 # Continue even if scanner registration fails - mark as registered to avoid retries
                 self._registered_scanners.add(source)
-
-            # Initialize RSSI filter with default if not set
-            if gateway_mac not in self._gateway_rssi_filters:
-                from .const import DEFAULT_RSSI_MIN
-
-                self._gateway_rssi_filters[gateway_mac] = DEFAULT_RSSI_MIN
-
-            # Create device in device registry
-            self._create_gateway_device(gateway_mac)
 
             # Notify discovery callbacks for new gateway
             for callback in self._gateway_discovered_callbacks:
@@ -454,27 +462,16 @@ class RuuviGatewayCoordinator:
                 model="Ruuvi Gateway",
             )
 
-            # Create child Bluetooth proxy device (linked via via_device)
-            proxy_source = f"ruuvi_gw_{gateway_mac.replace(':', '').lower()}"
-            proxy_device = self._device_registry.async_get_or_create(
-                config_entry_id=self.entry.entry_id,
-                identifiers={(DOMAIN, proxy_source)},
-                connections={
-                    (dr.CONNECTION_BLUETOOTH, gateway_mac)
-                },  # Use gateway MAC as connection
-                name=f"Ruuvi Gateway {gateway_mac} Bluetooth Proxy",
-                manufacturer="Ruuvi",
-                model="Bluetooth Proxy",
-                via_device=(DOMAIN, gateway_mac),  # Link to parent gateway
-            )
+            # Note: The Bluetooth scanner device is created automatically by the
+            # Bluetooth integration when we call async_register_scanner with
+            # source_device_id pointing to this gateway device
 
             self._gateway_devices[gateway_mac] = gateway_device.id
 
             _LOGGER.info(
-                "Created gateway device %s (device_id: %s) and proxy device (device_id: %s)",
+                "Created gateway device %s (device_id: %s)",
                 gateway_mac,
                 gateway_device.id,
-                proxy_device.id,
             )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error(
@@ -516,8 +513,8 @@ class RuuviGatewayCoordinator:
                 platform_data=observation.advertisement_data.platform_data,
             )
 
-            # Create service info
-            source = f"ruuvi_gw_{observation.gateway_mac.replace(':', '').lower()}"
+            # Create service info using gateway MAC as source (like USB dongles)
+            source = observation.gateway_mac
             service_info = BluetoothServiceInfoBleak(
                 name=advertisement_data.local_name or observation.ble_mac,
                 address=observation.ble_mac,
@@ -589,7 +586,7 @@ class RuuviGatewayCoordinator:
             "gateways": {
                 mac: {
                     "last_seen": last_seen,
-                    "source": f"ruuvi_gw_{mac.replace(':', '').lower()}",
+                    "source": mac,  # Use gateway MAC directly as source
                 }
                 for mac, last_seen in self._gateway_last_seen.items()
             },

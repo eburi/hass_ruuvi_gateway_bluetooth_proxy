@@ -67,7 +67,7 @@ hass_ruuvi_gateway_bluetooth_proxy/
 - ✅ Uses `bluetooth.async_register_scanner`
 - ✅ Uses `bluetooth.async_get_advertisement_callback`
 - ✅ Creates proper `BluetoothServiceInfoBleak` objects
-- ✅ Stable source naming: `ruuvi_gw_<mac_no_colons>`
+- ✅ Stable source naming: Gateway MAC address (e.g., `C1:05:28:BF:A7:E7`)
 
 ### 7. Batching & Rate Limiting
 - ✅ Buffer per gateway
