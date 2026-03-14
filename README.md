@@ -1,5 +1,11 @@
 # Ruuvi Gateway Bluetooth Proxy
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Tests](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/tests.yml)
+[![Linting](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/lint.yml)
+[![codecov](https://codecov.io/gh/eburi/hass_ruuvi_gateway_bluetooth_proxy/branch/main/graph/badge.svg)](https://codecov.io/gh/eburi/hass_ruuvi_gateway_bluetooth_proxy)
+[![Open your Home Assistant instance and open the add repository dialog with a specific repository URL pre-filled](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eburi&repository=hass_ruuvi_gateway_bluetooth_proxy&category=integration)
+
 A Home Assistant custom integration that subscribes to MQTT topics published by Ruuvi Gateways and forwards BLE advertisements to Home Assistant's Bluetooth backend.
 
 ## ⚠️ Important: MQTT Integration Dependency

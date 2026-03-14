@@ -35,7 +35,14 @@ jobs:
             --durations=10 \
             -n auto \
             --cov custom_components.ruuvi_gateway_bt_proxy \
+            --cov-report xml \
             --cov-report term-missing \
             -o console_output_style=count \
             -p no:sugar \
             tests
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
