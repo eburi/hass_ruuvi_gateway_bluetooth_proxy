@@ -63,7 +63,7 @@ def parse_advertisement_data(data_hex: str) -> AdvertisementData:
             # Padding or end of data
             break
 
-        if i + length >= len(data_bytes):
+        if i + length > len(data_bytes):
             # Incomplete structure
             _LOGGER.debug("Incomplete AD structure at position %d", i)
             break

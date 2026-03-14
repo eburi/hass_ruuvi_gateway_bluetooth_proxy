@@ -1,5 +1,7 @@
 """Tests for config flow."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
@@ -46,9 +48,13 @@ def test_validate_mac_list():
 
 async def test_user_flow_success(hass: HomeAssistant):
     """Test successful user flow."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    with patch(
+        "homeassistant.config_entries.async_process_deps_reqs",
+        AsyncMock(return_value=None),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
 
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
@@ -72,21 +78,25 @@ async def test_user_flow_success(hass: HomeAssistant):
 
 async def test_user_flow_with_whitelist(hass: HomeAssistant):
     """Test user flow with MAC whitelists."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    with patch(
+        "homeassistant.config_entries.async_process_deps_reqs",
+        AsyncMock(return_value=None),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
 
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            CONF_TOPIC_PREFIX: "custom",
-            CONF_QOS: 1,
-            CONF_GATEWAY_WHITELIST: "AA:BB:CC:DD:EE:FF",
-            CONF_DEVICE_WHITELIST: "11:22:33:44:55:66, 77:88:99:AA:BB:CC",
-            CONF_BATCH_WINDOW_MS: 500,
-            CONF_DEBUG_ENTITY: True,
-        },
-    )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_TOPIC_PREFIX: "custom",
+                CONF_QOS: 1,
+                CONF_GATEWAY_WHITELIST: "AA:BB:CC:DD:EE:FF",
+                CONF_DEVICE_WHITELIST: "11:22:33:44:55:66, 77:88:99:AA:BB:CC",
+                CONF_BATCH_WINDOW_MS: 500,
+                CONF_DEBUG_ENTITY: True,
+            },
+        )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_TOPIC_PREFIX] == "custom/"

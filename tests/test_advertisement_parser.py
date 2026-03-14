@@ -7,8 +7,8 @@ from custom_components.ruuvi_gateway_bt_proxy.advertisement_parser import (
 
 def test_parse_manufacturer_data():
     """Test parsing manufacturer data."""
-    # Apple iBeacon-like format: 0xFF (manufacturer) + company ID + data
-    data_hex = "02011A1BFF4C000215UUID16BYTESHEREMAJORMINORTXPOW"
+    # 0xFF (manufacturer specific): company ID 0x004C + 4 bytes payload
+    data_hex = "02011A07FF4C000215AABB"
 
     ad_data = parse_advertisement_data(data_hex)
 
@@ -32,7 +32,7 @@ def test_parse_ruuvi_manufacturer_data():
 def test_parse_local_name():
     """Test parsing complete local name."""
     # 0x09 = Complete Local Name
-    data_hex = "0201060C09527575766920544147"  # "Ruuvi TAG"
+    data_hex = "0201060A09527575766920544147"  # "Ruuvi TAG"
 
     ad_data = parse_advertisement_data(data_hex)
 
@@ -53,7 +53,7 @@ def test_parse_service_data_16bit():
 def test_parse_service_uuids_16bit():
     """Test parsing 16-bit service UUIDs."""
     # 0x03 = Complete 16-bit UUIDs
-    data_hex = "020106050316AAFE"
+    data_hex = "0201060303AAFE"
 
     ad_data = parse_advertisement_data(data_hex)
 
@@ -64,7 +64,7 @@ def test_parse_service_uuids_16bit():
 def test_parse_tx_power():
     """Test parsing TX power."""
     # 0x0A = TX Power Level (signed int8)
-    data_hex = "02010603020AFC"  # TX Power = -4 dBm
+    data_hex = "020106020AFC"  # TX Power = -4 dBm
 
     ad_data = parse_advertisement_data(data_hex)
 
@@ -104,7 +104,7 @@ def test_parse_incomplete_structure():
 def test_parse_multiple_structures():
     """Test parsing multiple AD structures."""
     # Flags + Complete Name + Manufacturer Data
-    data_hex = "020106" "0809527575766954" "05FF990405"
+    data_hex = "020106" "0709527575766954" "05FF990405"
 
     ad_data = parse_advertisement_data(data_hex)
 

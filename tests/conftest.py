@@ -1,7 +1,7 @@
 """Unit tests for Ruuvi Gateway Bluetooth Proxy integration."""
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ruuvi_gateway_bt_proxy.const import (
     CONF_BATCH_WINDOW_MS,
@@ -19,7 +19,7 @@ from custom_components.ruuvi_gateway_bt_proxy.const import (
 @pytest.fixture
 def mock_config_entry():
     """Return a mock config entry."""
-    return ConfigEntry(
+    return MockConfigEntry(
         version=1,
         minor_version=0,
         domain=DOMAIN,
@@ -35,3 +35,9 @@ def mock_config_entry():
         entry_id="test_entry_id",
         options={},
     )
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Enable loading custom integrations from this repository in tests."""
+    yield
