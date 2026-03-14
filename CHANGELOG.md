@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.1] - 2026-03-14
+
+### Fixed
+
+- Added integration brand assets under `custom_components/ruuvi_gateway_bt_proxy/brand/` (`icon.png`, `logo.png`) for HACS/Home Assistant branding.
+- Updated `hacs.json` to non-zip distribution mode (`zip_release: false`) to match repository layout.
+- Added `issue_tracker` to manifest metadata for HACS validation.
+- Removed unsupported `icon` key from `manifest.json` to satisfy Hassfest manifest validation.
+- Fixed manifest key ordering to match Hassfest requirements (`domain`, `name`, then alphabetical keys).
+- Added missing test dependencies (`pyserial`, `aiousbwatcher`) to `requirements_test.txt`.
+- Fixed BLE advertisement parser boundary handling for valid end-of-buffer AD structures.
+- Updated tests for current Home Assistant test APIs (`MockConfigEntry`, custom integration enabling, config flow dependency patching).
+- Corrected malformed advertisement parser test vectors and init/config-flow test harness behavior.
+
+### Validation
+
+- Local tests pass.
+- Local pre-commit/lint hooks pass.
+- GitHub Actions `Tests` and `Linting` workflows pass.
+
 ## [1.0.0] - 2026-01-13
 
 ### ✅ Working Implementation
