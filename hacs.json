@@ -1,7 +1,6 @@
 {
   "name": "Ruuvi Gateway Bluetooth Proxy",
   "content_in_root": false,
-  "zip_release": true,
-  "filename": "ruuvi_gateway_bt_proxy.zip",
+  "zip_release": false,
   "render_readme": true
 }
