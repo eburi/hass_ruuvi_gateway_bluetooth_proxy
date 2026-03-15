@@ -4,9 +4,17 @@
 [![Tests](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/tests.yml)
 [![Linting](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/actions/workflows/lint.yml)
 [![codecov](https://codecov.io/gh/eburi/hass_ruuvi_gateway_bluetooth_proxy/branch/main/graph/badge.svg)](https://codecov.io/gh/eburi/hass_ruuvi_gateway_bluetooth_proxy)
+[![Latest Release](https://img.shields.io/github/v/release/eburi/hass_ruuvi_gateway_bluetooth_proxy)](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/releases/latest)
 [![Open your Home Assistant instance and open the add repository dialog with a specific repository URL pre-filled](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eburi&repository=hass_ruuvi_gateway_bluetooth_proxy&category=integration)
 
 A Home Assistant custom integration that subscribes to MQTT topics published by Ruuvi Gateways and forwards BLE advertisements to Home Assistant's Bluetooth backend.
+
+## HACS Status
+
+- Repository type: HACS Integration (Custom Repository)
+- Installation mode: repository-based (`zip_release: false`)
+- Add directly in HACS via the one-click badge above or by URL:
+  - `https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy`
 
 ## ⚠️ Important: MQTT Integration Dependency
 
@@ -384,4 +392,5 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For issues, questions, or feature requests, please [open an issue on GitHub](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/issues).
+For bug reports, questions, or feature requests, please [open an issue on GitHub](https://github.com/eburi/hass_ruuvi_gateway_bluetooth_proxy/issues).
+When reporting bugs, include Home Assistant version, integration version, and Diagnostics output when possible.
